@@ -283,7 +283,7 @@ config MMU
 #
 choice
 	prompt "ARM system type"
-	default ARCH_VERSATILE
+	default ARCH_MSM
 
 config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
@@ -1862,7 +1862,8 @@ config ENABLE_DMM
 	def_bool n
 
 config DONT_MAP_HOLE_AFTER_MEMBANK0
-	def_bool n
+	bool "Don't map hole after MEMBANK0"
+	default n
 	depends on SPARSEMEM
 
 config HOLES_IN_ZONE

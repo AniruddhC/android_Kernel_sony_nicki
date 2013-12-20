@@ -216,6 +216,7 @@ struct pm8xxx_pwm_chip {
 	struct mutex			pwm_mutex;
 	struct device			*dev;
 	bool				is_lpg_supported;
+	bool        is_pwm_enable_sync_workaround_needed;//MTD-SW3-PERIPHERAL-BJ-LED_QCT_FIX-00+
 };
 
 static struct pm8xxx_pwm_chip	*pwm_chip;
@@ -818,6 +819,15 @@ int pwm_enable(struct pwm_device *pwm)
 			rc = pm8xxx_pwm_bank_enable(pwm, 1);
 			pm8xxx_pwm_bank_sel(pwm);
 			pm8xxx_pwm_start(pwm, 1, 0);
+
+//MTD-SW3-PERIPHERAL-BJ-LED_QCT_FIX-00+{
+			/* In PM8038, due to hardware bug, PWM_VALUE register
+			 * needs to be written one more time after enabling
+			 * PWM mode.
+			 */
+			if (pwm->chip->is_pwm_enable_sync_workaround_needed)
+				rc = pm8xxx_lpg_pwm_write(pwm, 3, 4);
+//MTD-SW3-PERIPHERAL-BJ-LED_QCT_FIX-00+}
 		} else {
 			pm8xxx_pwm_enable(pwm);
 		}
@@ -1391,6 +1401,13 @@ static int __devinit pm8xxx_pwm_probe(struct platform_device *pdev)
 			version == PM8XXX_VERSION_8038) {
 		chip->is_lpg_supported = 1;
 	}
+
+//MTD-SW3-PERIPHERAL-BJ-LED_QCT_FIX-00+{
+	if (version == PM8XXX_VERSION_8038)
+		chip->is_pwm_enable_sync_workaround_needed = 1;
+	else
+		chip->is_pwm_enable_sync_workaround_needed = 0;
+//MTD-SW3-PERIPHERAL-BJ-LED_QCT_FIX-00+}
 	if (chip->is_lpg_supported) {
 		if (version == PM8XXX_VERSION_8922 ||
 				version == PM8XXX_VERSION_8038) {

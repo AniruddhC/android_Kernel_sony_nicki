@@ -90,7 +90,6 @@ static int l2cap_answer_move_poll(struct sock *sk);
 static int l2cap_create_cfm(struct hci_chan *chan, u8 status);
 static int l2cap_deaggregate(struct hci_chan *chan, struct l2cap_pinfo *pi);
 static void l2cap_chan_ready(struct sock *sk);
-static void l2cap_conn_del(struct hci_conn *hcon, int err, u8 is_process);
 static u16 l2cap_get_smallest_flushto(struct l2cap_chan_list *l);
 static void l2cap_set_acl_flushto(struct hci_conn *hcon, u16 flush_to);
 static void l2cap_queue_acl_data(struct work_struct *worker);
@@ -1183,7 +1182,7 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon, u8 status)
 	return conn;
 }
 
-static void l2cap_conn_del(struct hci_conn *hcon, int err, u8 is_process)
+void l2cap_conn_del(struct hci_conn *hcon, int err, u8 is_process)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
 	struct sock *sk;
@@ -1808,6 +1807,11 @@ struct sk_buff *l2cap_create_iframe_pdu(struct sock *sk,
 
 	BT_DBG("sk %p, msg %p, len %d, sdulen %d, hlen %d",
 		sk, msg, (int)len, (int)sdulen, hlen);
+
+    if (!l2cap_pi(sk)->conn){
+    	BT_ERR("l2cap_pi(sk)->conn is NULL, return error");
+		return ERR_PTR(err);
+	}
 
 	count = min_t(unsigned int, (l2cap_pi(sk)->conn->mtu - hlen), len);
 
@@ -2439,6 +2443,11 @@ int l2cap_segment_sdu(struct sock *sk, struct sk_buff_head* seg_queue,
 		skb = l2cap_create_iframe_pdu(sk, msg, pdu_len, sdu_len, reseg);
 
 		BT_DBG("iframe skb %p", skb);
+		
+		if(!skb){
+			BT_ERR("skb is NULL, return error");
+			return err;
+		}
 
 		if (IS_ERR(skb)) {
 			__skb_queue_purge(seg_queue);

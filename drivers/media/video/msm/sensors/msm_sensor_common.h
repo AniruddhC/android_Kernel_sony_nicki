@@ -1,4 +1,5 @@
 /* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+ * Copyright(C) 2013 Foxconn International Holdings, Ltd. All rights.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -82,6 +83,7 @@ struct msm_camera_power_seq_t {
 struct msm_sensor_id_info_t {
 	uint16_t sensor_id_reg_addr;
 	uint16_t sensor_id;
+	uint16_t sensor_id_reg_addr2;//FIH-SW-MM-MC-BringUpCameraYUVSensorForHM03D5-00+
 };
 
 struct msm_sensor_reg_t {

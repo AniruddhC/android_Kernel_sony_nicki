@@ -198,7 +198,9 @@ static int i2c_device_pm_suspend(struct device *dev)
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 
 	if (pm)
+	{
 		return pm_generic_suspend(dev);
+	}
 	else
 		return i2c_legacy_suspend(dev, PMSG_SUSPEND);
 }
@@ -208,7 +210,9 @@ static int i2c_device_pm_resume(struct device *dev)
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 
 	if (pm)
+	{
 		return pm_generic_resume(dev);
+	}
 	else
 		return i2c_legacy_resume(dev);
 }

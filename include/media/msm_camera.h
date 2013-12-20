@@ -1,5 +1,7 @@
 /* Copyright (c) 2009-2013, The Linux Foundation. All rights reserved.
-*
+ *Copyright(C) 2013 Foxconn International Holdings, Ltd. All rights.
+ *
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
  * only version 2 as published by the Free Software Foundation.
@@ -1320,6 +1322,7 @@ struct msm_sensor_output_info_t {
 struct sensor_output_info_t {
 	struct msm_sensor_output_info_t *output_info;
 	uint16_t num_info;
+    uint32_t shading_index;/* MM-MC-ImplementRegSwitchMechanismForShading-00+ */
 };
 
 struct msm_sensor_exp_gain_info_t {
@@ -1801,6 +1804,9 @@ enum af_camera_name {
 	ACTUATOR_MAIN_CAM_3,
 	ACTUATOR_MAIN_CAM_4,
 	ACTUATOR_MAIN_CAM_5,
+	ACTUATOR_MAIN_CAM_FIH_6,//FIH-SW-MM-MC-ImplementCameraAutoFocusForS5K4E1-00+
+	ACTUATOR_MAIN_CAM_FIH_7,//FIH-SW-MM-MC-BringUpAD5823ForAF-00+
+	ACTUATOR_MAIN_CAM_FIH_8,//MM-MC-BringUpAD5816ForAfOfLitenCustomizationModule-00+
 	ACTUATOR_WEB_CAM_0,
 	ACTUATOR_WEB_CAM_1,
 	ACTUATOR_WEB_CAM_2,

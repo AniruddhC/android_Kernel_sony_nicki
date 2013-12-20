@@ -846,6 +846,10 @@ int mdp4_dsi_video_off(struct platform_device *pdev)
 		mdp4_dsi_video_pipe_clean(vp);
 	}
 
+	/* MM-KW-TraceLog-00+ */
+	printk(KERN_INFO "[DISPLAY]%s: pipe %d, cnt %d, e %d\n", 
+			__func__, (pipe != NULL), mfd->ref_cnt, vctrl->vsync_irq_enabled);
+
 	if (pipe) {
 		/* sanity check, free pipes besides base layer */
 		mixer = pipe->mixer_num;

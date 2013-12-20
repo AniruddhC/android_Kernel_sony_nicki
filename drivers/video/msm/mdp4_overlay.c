@@ -134,7 +134,9 @@ void  mdp4_overlay_free_base_pipe(struct msm_fb_data_type *mfd)
 		else if (ctrl->panel_mode & MDP4_PANEL_LCDC)
 			mdp4_lcdc_free_base_pipe(mfd);
 	} else if (hdmi_prim_display || mfd->index == 1) {
+#ifdef CONFIG_FB_MSM_DTV
 		mdp4_dtv_free_base_pipe(mfd);
+#endif
 	}
 }
 
@@ -2003,9 +2005,10 @@ void mdp4_overlay_borderfill_stage_down(struct mdp4_overlay_pipe *pipe)
 		mdp4_dsi_cmd_base_swap(0, bspipe);
 	else if (ctrl->panel_mode & MDP4_PANEL_LCDC)
 		mdp4_lcdc_base_swap(0, bspipe);
+#ifdef CONFIG_FB_MSM_DTV
 	else if (ctrl->panel_mode & MDP4_PANEL_DTV)
 		mdp4_dtv_base_swap(0, bspipe);
-
+#endif
 	/* free borderfill pipe */
 	mdp4_overlay_reg_flush(pipe, 1);
 	mdp4_mixer_stage_down(pipe, 0); /* commit will happen for bspipe up */
@@ -2485,14 +2488,14 @@ static int mdp4_overlay_req2pipe(struct mdp_overlay *req, int mixer,
 		return -ERANGE;
 	}
 
-	if (req->src_rect.h > 0xFFF) {
+	if (req->src_rect.h > 0xFFF || req->src_rect.h < 2) {
 		pr_err("%s: src_h is out of range: 0X%x!\n",
 		       __func__, req->src_rect.h);
 		mdp4_stat.err_size++;
 		return -EINVAL;
 	}
 
-	if (req->src_rect.w > 0xFFF) {
+	if (req->src_rect.w > 0xFFF || req->src_rect.w < 2) {
 		pr_err("%s: src_w is out of range: 0X%x!\n",
 		       __func__, req->src_rect.w);
 		mdp4_stat.err_size++;
@@ -2513,14 +2516,14 @@ static int mdp4_overlay_req2pipe(struct mdp_overlay *req, int mixer,
 		return -EINVAL;
 	}
 
-	if (req->dst_rect.h > 0xFFF) {
+	if (req->dst_rect.h > 0xFFF || req->dst_rect.h < 2) {
 		pr_err("%s: dst_h is out of range: 0X%x!\n",
 		       __func__, req->dst_rect.h);
 		mdp4_stat.err_size++;
 		return -EINVAL;
 	}
 
-	if (req->dst_rect.w > 0xFFF) {
+	if (req->dst_rect.w > 0xFFF || req->dst_rect.w < 2) {
 		pr_err("%s: dst_w is out of range: 0X%x!\n",
 		       __func__, req->dst_rect.w);
 		mdp4_stat.err_size++;
@@ -3003,8 +3006,12 @@ int mdp4_calc_blt_mdp_bw(struct msm_fb_data_type *mfd,
 
 static int mdp4_axi_port_read_client_pipe(struct mdp4_overlay_pipe *pipe)
 {
-	u32 data = inpdw(MDP_BASE + 0x0404);
-	u32 port = 0;
+	u32 data = 0, port = 0;
+
+	mdp_clk_ctrl(1);
+	data = inpdw(MDP_BASE + 0x0404);
+	mdp_clk_ctrl(0);
+
 	if (pipe->pipe_ndx == 1) /* rgb1 */
 		port = (data & 0x0010) ? 1 : 0;
 	else if (pipe->pipe_ndx == 2) /* rgb2 */
@@ -3020,8 +3027,12 @@ static int mdp4_axi_port_read_client_pipe(struct mdp4_overlay_pipe *pipe)
 
 static int mdp4_axi_port_read_client_mixer(int mixer)
 {
-	u32 data = inpdw(MDP_BASE + 0x0404);
-	u32 port = 0;
+	u32 data = 0, port = 0;
+
+	mdp_clk_ctrl(1);
+	data = inpdw(MDP_BASE + 0x0404);
+	mdp_clk_ctrl(0);
+
 	if (mixer == MDP4_MIXER0) /* dmap */
 		port = (data & 0x1000) ? 1 : 0;
 	else if (mixer == MDP4_MIXER1) /* dmae */
@@ -3033,8 +3044,12 @@ static int mdp4_axi_port_read_client_mixer(int mixer)
 
 static int mdp4_axi_port_write_client_mixer(int mixer)
 {
-	u32 data = inpdw(MDP_BASE + 0x0408);
-	u32 port = 0;
+	u32 data = 0, port = 0;
+
+	mdp_clk_ctrl(1);
+	data = inpdw(MDP_BASE + 0x0408);
+	mdp_clk_ctrl(0);
+
 	if (mixer == MDP4_MIXER0) /* dmap */
 		port = (data & 0x0001) ? 1 : 0;
 	else if (mixer == MDP4_MIXER1) /* dmae */
@@ -3885,8 +3900,10 @@ int mdp4_overlay_play(struct fb_info *info, struct msmfb_overlay_data *req)
 			mdp4_lcdc_pipe_queue(0, pipe);
 		}
 	} else if (pipe->mixer_num == MDP4_MIXER1) {
+#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
 		if (ctrl->panel_mode & MDP4_PANEL_DTV)
 			mdp4_dtv_pipe_queue(0, pipe);/* cndx = 0 */
+#endif
 	} else if (pipe->mixer_num == MDP4_MIXER2) {
 		ctrl->mixer2_played++;
 		if (ctrl->panel_mode & MDP4_PANEL_WRITEBACK)
@@ -3930,9 +3947,11 @@ int mdp4_overlay_commit(struct fb_info *info)
 	case LCDC_PANEL:
 		mdp4_lcdc_pipe_commit(0, 1);
 		break;
+#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL	
 	case DTV_PANEL:
 		mdp4_dtv_pipe_commit(0, 1);
 		break;
+#endif
 	case WRITEBACK_PANEL:
 		mdp4_wfd_pipe_commit(mfd, 0, 1);
 		break;

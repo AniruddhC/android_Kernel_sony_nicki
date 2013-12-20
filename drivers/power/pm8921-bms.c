@@ -32,6 +32,69 @@
 #include <linux/mutex.h>
 #include <linux/rtc.h>
 
+#define	MSG_NONE	0
+#define	MSG_INFO		1
+#define	MSG_DBG		2
+#define	MSG_TRK		3
+#define	MSG_WARN	4
+#define	MSG_ERR		5
+#define	MSG_MAX		6
+
+static int debug_level = MSG_TRK;
+static bool battery_valid = true;
+
+#define DBG_MSG(level, msg, ...)\
+do {\
+	if ((level < MSG_MAX) && (level >= debug_level)) \
+	{\
+		char   buf[200];\
+		char  *s = buf;\
+		\
+		s += snprintf(s, sizeof(buf) - (size_t)(s-buf), "[bms %s %d]:",  __func__, __LINE__);\
+		\
+		snprintf(s, sizeof(buf) - (size_t)(s-buf), msg, ##__VA_ARGS__);\
+		printk(KERN_ERR "%s", buf);\
+	}\
+}while(0)
+
+#if defined pr_err
+	#undef	pr_err
+#endif
+	
+#if defined pr_debug
+	#undef	pr_debug
+#endif
+	
+#if defined pr_info
+	#undef	pr_info
+#endif
+	
+#if defined pr_warn_ratelimited
+	#undef	pr_warn_ratelimited
+#endif
+	
+#if defined pr_warn
+	#undef	pr_warn
+#endif	
+
+#define pr_err(fmt, ...) \
+	DBG_MSG(MSG_ERR, fmt, ##__VA_ARGS__)
+
+#define pr_warn_ratelimited(fmt, ...) \
+	DBG_MSG(MSG_WARN, fmt, ##__VA_ARGS__)
+
+#define pr_warn(fmt, ...) \
+	DBG_MSG(MSG_WARN, fmt, ##__VA_ARGS__)
+
+#define pr_debug(fmt, ...) \
+	DBG_MSG(MSG_DBG, fmt, ##__VA_ARGS__)
+
+#define pr_track(fmt, ...) \
+	DBG_MSG(MSG_TRK, fmt, ##__VA_ARGS__)
+
+#define pr_info(fmt, ...) \
+	DBG_MSG(MSG_INFO, fmt, ##__VA_ARGS__)
+
 #define BMS_CONTROL		0x224
 #define BMS_S1_DELAY		0x225
 #define BMS_OUTPUT0		0x230
@@ -137,7 +200,6 @@ struct pm8921_bms_chip {
 	int			amux_2_trim_delta;
 	uint16_t		prev_last_good_ocv_raw;
 	int			rconn_mohm;
-	int			rbatt_capacitive_mohm;
 	struct mutex		last_ocv_uv_mutex;
 	int			last_ocv_uv;
 	int			last_ocv_temp_decidegc;
@@ -177,6 +239,9 @@ struct pm8921_bms_chip {
 	int			vbatt_cutoff_count;
 	int			low_voltage_detect;
 	int			vbatt_cutoff_retries;
+	bool			first_report_after_suspend;
+	bool			soc_updated_on_resume;
+	int			last_soc_at_suspend;
 };
 
 /*
@@ -873,8 +938,7 @@ static int estimate_ocv(struct pm8921_bms_chip *chip)
 {
 	int ibat_ua, vbat_uv, ocv_est_uv;
 	int rc;
-	int rbatt_mohm = chip->default_rbatt_mohm + chip->rconn_mohm
-				+ chip->rbatt_capacitive_mohm;
+	int rbatt_mohm = chip->default_rbatt_mohm + chip->rconn_mohm;
 
 	rc = pm8921_bms_get_simultaneous_battery_voltage_and_current(
 							&ibat_ua,
@@ -1098,10 +1162,6 @@ static int get_rbatt(struct pm8921_bms_chip *chip, int soc_rbatt, int batt_temp)
 	rbatt += the_chip->rconn_mohm;
 	pr_debug("adding rconn_mohm = %d rbatt = %d\n",
 				the_chip->rconn_mohm, rbatt);
-
-	rbatt += the_chip->rbatt_capacitive_mohm;
-	pr_debug("adding rbatt_capacitive_mohm = %d rbatt = %d\n",
-				the_chip->rbatt_capacitive_mohm, rbatt);
 
 	if (is_between(20, 10, soc_rbatt))
 		rbatt = rbatt
@@ -1880,7 +1940,7 @@ static int adjust_soc(struct pm8921_bms_chip *chip, int soc,
 		wake_lock_active(&chip->low_voltage_wake_lock)) {
 		if (is_voltage_below_cutoff_window(chip, ibat_ua, vbat_uv)) {
 			soc = 0;
-			pr_info("Voltage below cutoff, setting soc to 0\n");
+			pr_err("Voltage below cutoff, setting soc to 0\n");
 			goto out;
 		}
 	}
@@ -2022,6 +2082,11 @@ static void backup_soc_and_iavg(struct pm8921_bms_chip *chip, int batt_temp,
 	u8 temp;
 	int iavg_ma = chip->prev_uuc_iavg_ma;
 
+	if (!battery_valid) {
+		pr_err("battery invalid, just return");
+		return;
+	}
+
 	if (iavg_ma > IAVG_START)
 		temp = (iavg_ma - IAVG_START) / IAVG_STEP_SIZE_MA;
 	else
@@ -2071,6 +2136,7 @@ static void read_shutdown_soc_and_iavg(struct pm8921_bms_chip *chip)
 		if (chip->shutdown_soc == 0) {
 			pr_debug("No shutdown soc available\n");
 			shutdown_soc_invalid = 1;
+			pr_track("set shutdown_soc_invalid to 1");
 			chip->shutdown_iavg_ua = 0;
 		} else if (chip->shutdown_soc == SOC_ZERO) {
 			chip->shutdown_soc = 0;
@@ -2079,6 +2145,7 @@ static void read_shutdown_soc_and_iavg(struct pm8921_bms_chip *chip)
 
 	if (chip->ignore_shutdown_soc) {
 		shutdown_soc_invalid = 1;
+		pr_track("set shutdown_soc_invalid to 1");
 		chip->shutdown_soc = 0;
 		chip->shutdown_iavg_ua = 0;
 	}
@@ -2137,16 +2204,34 @@ static int scale_soc_while_chg(struct pm8921_bms_chip *chip,
 
 static bool is_shutdown_soc_within_limits(struct pm8921_bms_chip *chip, int soc)
 {
+	u8 restart_reason;
+	bool invalid_ssoc = false;
+
 	if (shutdown_soc_invalid) {
 		pr_debug("NOT forcing shutdown soc = %d\n", chip->shutdown_soc);
 		return 0;
 	}
 
-	if (abs(chip->shutdown_soc - soc) > chip->shutdown_soc_valid_limit) {
-		pr_debug("rejecting shutdown soc = %d, soc = %d limit = %d\n",
-			chip->shutdown_soc, soc,
-			chip->shutdown_soc_valid_limit);
+	restart_reason = pm8xxx_restart_reason(chip->dev->parent);
+	pr_track("ssoc = %d, soc = %d, restart_reason = %d, invalid = %d", 
+		chip->shutdown_soc, soc, restart_reason, shutdown_soc_invalid);
+
+	/* if the cable plugged, only accept capacity decrease/increase within 4% */
+	if (restart_reason == PM8XXX_RESTART_CHG) {
+		if (abs(chip->shutdown_soc - soc) <= 4)
+			invalid_ssoc = true;
+	}
+	/* if the restart reason other than PM8XXX_RESTART_CHG */
+	else if (abs(chip->shutdown_soc - soc) > chip->shutdown_soc_valid_limit)  {
+		invalid_ssoc = true;
+	}
+
+	if (invalid_ssoc) {
+		pr_debug("rejecting shutdown soc = %d, soc = %d",
+			chip->shutdown_soc, soc);
+			
 		shutdown_soc_invalid = 1;
+		pr_track("set shutdown_soc_invalid to 1");
 		return 0;
 	}
 
@@ -2387,10 +2472,11 @@ static int calculate_state_of_charge(struct pm8921_bms_chip *chip,
 			rbatt, fcc_uah, unusable_charge_uah, cc_uah);
 
 	pr_debug("calculated SOC = %d\n", new_calculated_soc);
-	if (new_calculated_soc != calculated_soc)
+	if (new_calculated_soc != calculated_soc) {
+		calculated_soc = new_calculated_soc;
 		update_power_supply(chip);
+	}
 
-	calculated_soc = new_calculated_soc;
 	firsttime = 0;
 	get_current_time(&chip->last_recalc_time);
 
@@ -2495,15 +2581,31 @@ static int report_state_of_charge(struct pm8921_bms_chip *chip)
 
 	/* last_soc < soc  ... scale and catch up */
 	if (last_soc != -EINVAL && last_soc < soc && soc != 100)
-			soc = scale_soc_while_chg(chip, delta_time_us,
-							soc, last_soc);
+		soc = scale_soc_while_chg(chip, delta_time_us, soc, last_soc);
 
-	/* restrict soc to 1% change */
 	if (last_soc != -EINVAL) {
-		if (soc < last_soc && soc != 0)
+		if (chip->first_report_after_suspend) {
+			chip->first_report_after_suspend = false;
+			if (chip->soc_updated_on_resume) {
+				/*  coming here after a long suspend */
+				chip->soc_updated_on_resume = false;
+				if (last_soc < soc)
+					/* if soc has falsely increased during
+					 * suspend, set the soc_at_suspend
+					 */
+					soc = chip->last_soc_at_suspend;
+			} else {
+				/*
+				 * suspended for a short time
+				 * report the last_soc before suspend
+				 */
+				soc = chip->last_soc_at_suspend;
+			}
+		} else if (soc < last_soc && soc != 0) {
 			soc = last_soc - 1;
-		if (soc > last_soc && soc != 100)
+		} else if (soc > last_soc && soc != 100) {
 			soc = last_soc + 1;
+		}
 	}
 
 	last_soc = bound_soc(soc);
@@ -2516,11 +2618,13 @@ static int report_state_of_charge(struct pm8921_bms_chip *chip)
 
 void pm8921_bms_battery_removed(void)
 {
+	battery_valid = false;
+	
 	if (!the_chip) {
 		pr_err("called before initialization\n");
 		return;
 	}
-	pr_info("Battery Removed Cleaning up\n");
+	pr_err("Battery Removed Cleaning up\n");
 
 	cancel_delayed_work_sync(&the_chip->calculate_soc_delayed_work);
 	calculated_soc = 0;
@@ -2584,6 +2688,7 @@ void pm8921_bms_invalidate_shutdown_soc(void)
 
 	mutex_lock(&soc_invalidation_mutex);
 	shutdown_soc_invalid = 1;
+	pr_track("set shutdown_soc_invalid to 1");
 	last_soc = -EINVAL;
 	if (the_chip) {
 		/* reset to pon ocv undoing what the adjusting did */
@@ -2989,76 +3094,18 @@ static void check_initial_ocv(struct pm8921_bms_chip *chip)
 	pr_debug("ocv_uv = %d last_ocv_uv = %d\n", ocv_uv, chip->last_ocv_uv);
 }
 
-static int64_t read_battery_id(struct pm8921_bms_chip *chip)
-{
-	int rc;
-	struct pm8xxx_adc_chan_result result;
-
-	rc = pm8xxx_adc_read(chip->batt_id_channel, &result);
-	if (rc) {
-		pr_err("error reading batt id channel = %d, rc = %d\n",
-					chip->vbat_channel, rc);
-		return rc;
-	}
-	pr_debug("batt_id phy = %lld meas = 0x%llx\n", result.physical,
-						result.measurement);
-	return result.adc_code;
-}
-
-#define PALLADIUM_ID_MIN	0x7F40
-#define PALLADIUM_ID_MAX	0x7F5A
-#define DESAY_5200_ID_MIN	0x7F7F
-#define DESAY_5200_ID_MAX	0x802F
 static int set_battery_data(struct pm8921_bms_chip *chip)
 {
-	int64_t battery_id;
-
-	if (chip->batt_type == BATT_DESAY)
-		goto desay;
-	else if (chip->batt_type == BATT_PALLADIUM)
-		goto palladium;
-
-	battery_id = read_battery_id(chip);
-	if (battery_id < 0) {
-		pr_err("cannot read battery id err = %lld\n", battery_id);
-		return battery_id;
-	}
-
-	if (is_between(PALLADIUM_ID_MIN, PALLADIUM_ID_MAX, battery_id)) {
-		goto palladium;
-	} else if (is_between(DESAY_5200_ID_MIN, DESAY_5200_ID_MAX,
-				battery_id)) {
-		goto desay;
-	} else {
-		pr_warn("invalid battid, palladium 1500 assumed batt_id %llx\n",
-				battery_id);
-		goto palladium;
-	}
-
-palladium:
-		chip->fcc = palladium_1500_data.fcc;
-		chip->fcc_temp_lut = palladium_1500_data.fcc_temp_lut;
-		chip->fcc_sf_lut = palladium_1500_data.fcc_sf_lut;
-		chip->pc_temp_ocv_lut = palladium_1500_data.pc_temp_ocv_lut;
-		chip->pc_sf_lut = palladium_1500_data.pc_sf_lut;
-		chip->rbatt_sf_lut = palladium_1500_data.rbatt_sf_lut;
-		chip->default_rbatt_mohm
-				= palladium_1500_data.default_rbatt_mohm;
-		chip->delta_rbatt_mohm = palladium_1500_data.delta_rbatt_mohm;
-		chip->rbatt_capacitive_mohm
-			= palladium_1500_data.rbatt_capacitive_mohm;
-		return 0;
-desay:
-		chip->fcc = desay_5200_data.fcc;
-		chip->fcc_temp_lut = desay_5200_data.fcc_temp_lut;
-		chip->pc_temp_ocv_lut = desay_5200_data.pc_temp_ocv_lut;
-		chip->pc_sf_lut = desay_5200_data.pc_sf_lut;
-		chip->rbatt_sf_lut = desay_5200_data.rbatt_sf_lut;
-		chip->default_rbatt_mohm = desay_5200_data.default_rbatt_mohm;
-		chip->delta_rbatt_mohm = desay_5200_data.delta_rbatt_mohm;
-		chip->rbatt_capacitive_mohm
-			= desay_5200_data.rbatt_capacitive_mohm;
-		return 0;
+	chip->fcc = palladium_1500_data.fcc;
+	chip->fcc_temp_lut = palladium_1500_data.fcc_temp_lut;
+	chip->fcc_sf_lut = palladium_1500_data.fcc_sf_lut;
+	chip->pc_temp_ocv_lut = palladium_1500_data.pc_temp_ocv_lut;
+	chip->pc_sf_lut = palladium_1500_data.pc_sf_lut;
+	chip->rbatt_sf_lut = palladium_1500_data.rbatt_sf_lut;
+	chip->default_rbatt_mohm
+			= palladium_1500_data.default_rbatt_mohm;
+	chip->delta_rbatt_mohm = palladium_1500_data.delta_rbatt_mohm;
+	return 0;
 }
 
 enum bms_request_operation {
@@ -3560,12 +3607,11 @@ static int __devexit pm8921_bms_remove(struct platform_device *pdev)
 
 static int pm8921_bms_suspend(struct device *dev)
 {
-	/*
-	 * set the last reported soc to invalid, so that
-	 * next time we resume we don't want to restrict
-	 * the decrease of soc by only 1%
-	 */
-	last_soc = -EINVAL;
+	struct pm8921_bms_chip *chip = dev_get_drvdata(dev);
+
+	cancel_delayed_work_sync(&chip->calculate_soc_delayed_work);
+
+	chip->last_soc_at_suspend = last_soc;
 
 	return 0;
 }
@@ -3575,22 +3621,30 @@ static int pm8921_bms_resume(struct device *dev)
 	int rc;
 	unsigned long time_since_last_recalc;
 	unsigned long tm_now_sec;
+	struct pm8921_bms_chip *chip = dev_get_drvdata(dev);
 
 	rc = get_current_time(&tm_now_sec);
 	if (rc) {
 		pr_err("Could not read current time: %d\n", rc);
 		return 0;
 	}
-	if (tm_now_sec > the_chip->last_recalc_time) {
+
+	if (tm_now_sec > chip->last_recalc_time) {
 		time_since_last_recalc = tm_now_sec -
-				the_chip->last_recalc_time;
+				chip->last_recalc_time;
 		pr_debug("Time since last recalc: %lu\n",
 				time_since_last_recalc);
-		if (time_since_last_recalc >= the_chip->soc_calc_period) {
-			the_chip->last_recalc_time = tm_now_sec;
-			recalculate_soc(the_chip);
+		if ((time_since_last_recalc * 1000) >=
+					chip->soc_calc_period) {
+			chip->last_recalc_time = tm_now_sec;
+			recalculate_soc(chip);
+			chip->soc_updated_on_resume = true;
 		}
 	}
+	chip->first_report_after_suspend = true;
+	update_power_supply(chip);
+	schedule_delayed_work(&chip->calculate_soc_delayed_work,
+				msecs_to_jiffies(chip->soc_calc_period));
 
 	return 0;
 }

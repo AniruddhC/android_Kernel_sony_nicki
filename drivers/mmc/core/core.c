@@ -428,16 +428,21 @@ void mmc_start_bkops(struct mmc_card *card, bool from_exception)
 	mmc_card_clr_need_bkops(card);
 
 	mmc_card_set_doing_bkops(card);
+	/*BSP-ELuo-Patch_Reomve_the_polling_for_BKOPS-00 +[*/
+	#if 0 
 	pr_debug("%s: %s: starting the polling thread\n",
 		 mmc_hostname(card->host), __func__);
 	queue_work(system_nrt_wq,
 		   &card->bkops_info.poll_for_completion);
-
+	#endif
+	/*BSP-ELuo-Patch_Reomve_the_polling_for_BKPSS-00 ]+*/
 out:
 	mmc_release_host(card->host);
 }
 EXPORT_SYMBOL(mmc_start_bkops);
 
+/*BSP-ELuo-Patch_Reomve_the_polling_for_BKOPS-00 +[*/
+#if 0 
 /**
  * mmc_bkops_completion_polling() - Poll on the card status to
  * wait for the non-blocking BKOPS completion
@@ -509,6 +514,8 @@ void mmc_bkops_completion_polling(struct work_struct *work)
 out:
 	mmc_release_host(card->host);
 }
+#endif
+/*BSP-ELuo-Patch_Reomve_the_polling_for_BKPOS-00 ]+*/
 
 /**
  * mmc_start_idle_time_bkops() - check if a non urgent BKOPS is
@@ -705,6 +712,38 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 }
 EXPORT_SYMBOL(mmc_wait_for_req);
 
+/*BSP-ELuo-Patch_Reomve_the_polling_for_BKOPS-00 +[*/
+bool mmc_card_is_prog_state(struct mmc_card *card)
+{
+	bool rc;
+	struct mmc_command cmd;
+
+	mmc_claim_host(card->host);
+	memset(&cmd, 0, sizeof(struct mmc_command));
+	cmd.opcode = MMC_SEND_STATUS;
+	if (!mmc_host_is_spi(card->host))
+		cmd.arg = card->rca << 16;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
+
+	rc = mmc_wait_for_cmd(card->host, &cmd, 0);
+	if (rc) {
+		pr_err("%s: Get card status fail. rc=%d\n",
+		       mmc_hostname(card->host), rc);
+		rc = false;
+		goto out;
+	}
+
+	if (R1_CURRENT_STATE(cmd.resp[0]) == R1_STATE_PRG)
+		rc = true;
+	else
+		rc = false;
+out:
+	mmc_release_host(card->host);
+	return rc;
+}
+EXPORT_SYMBOL(mmc_card_is_prog_state);
+/*BSP-ELuo-Patch_Reomve_the_polling_for_BKOPS-00 ]+*/
+
 /**
  *	mmc_interrupt_hpi - Issue for High priority Interrupt
  *	@card: the MMC card associated with the HPI transfer
@@ -818,6 +857,19 @@ int mmc_stop_bkops(struct mmc_card *card)
 	if (!mmc_card_doing_bkops(card))
 		goto out;
 
+	/*BSP-ELuo-Patch_Reomve_the_polling_for_BKOPS-00 +[*/
+	/*
+	 * If idle time bkops is running on the card, let's not get into
+	 * suspend.
+	 */
+	if (mmc_card_doing_bkops(card)
+	    && (card->host->parent->power.runtime_status == RPM_SUSPENDING)
+	    && mmc_card_is_prog_state(card)) {
+		err = -EBUSY;
+		goto out;
+	}
+	/*BSP-ELuo-Patch_Reomve_the_polling_for_BKOPS-00 ]+*/
+		
 	err = mmc_interrupt_hpi(card);
 
 	/*

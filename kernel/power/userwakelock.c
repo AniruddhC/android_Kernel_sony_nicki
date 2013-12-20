@@ -153,6 +153,10 @@ ssize_t wake_lock_store(
 {
 	long timeout;
 	struct user_wake_lock *l;
+	if (!strncmp(buf,"PMS^",4))
+	{	
+		return n;
+	}
 
 	mutex_lock(&tree_lock);
 	l = lookup_wake_lock_name(buf, 1, &timeout);
@@ -200,6 +204,11 @@ ssize_t wake_unlock_store(
 	const char *buf, size_t n)
 {
 	struct user_wake_lock *l;
+
+	if (!strncmp(buf,"PMS^",4))
+	{
+		return n;
+	}
 
 	mutex_lock(&tree_lock);
 	l = lookup_wake_lock_name(buf, 0, NULL);

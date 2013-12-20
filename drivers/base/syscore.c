@@ -53,15 +53,14 @@ int syscore_suspend(void)
 
 	/* Return error code if there are any wakeup interrupts pending. */
 	ret = check_wakeup_irqs();
-	if (ret)
-		return ret;
-
+    if (ret)
+        return ret;
+    
 	WARN_ONCE(!irqs_disabled(),
 		"Interrupts enabled before system core suspend.\n");
 
 	list_for_each_entry_reverse(ops, &syscore_ops_list, node)
 		if (ops->suspend) {
-			if (initcall_debug)
 				pr_info("PM: Calling %pF\n", ops->suspend);
 			ret = ops->suspend();
 			if (ret)
@@ -97,7 +96,6 @@ void syscore_resume(void)
 
 	list_for_each_entry(ops, &syscore_ops_list, node)
 		if (ops->resume) {
-			if (initcall_debug)
 				pr_info("PM: Calling %pF\n", ops->resume);
 			ops->resume();
 			WARN_ONCE(!irqs_disabled(),
@@ -118,7 +116,6 @@ void syscore_shutdown(void)
 
 	list_for_each_entry_reverse(ops, &syscore_ops_list, node)
 		if (ops->shutdown) {
-			if (initcall_debug)
 				pr_info("PM: Calling %pF\n", ops->shutdown);
 			ops->shutdown();
 		}

@@ -20,7 +20,6 @@
 
 #include "rtc-core.h"
 
-
 static DEFINE_IDA(rtc_ida);
 struct class *rtc_class;
 
@@ -46,6 +45,7 @@ static int rtc_suspend(struct device *dev, pm_message_t mesg)
 	struct rtc_device	*rtc = to_rtc_device(dev);
 	struct rtc_time		tm;
 	struct timespec		delta, delta_delta;
+
 	if (strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE) != 0)
 		return 0;
 

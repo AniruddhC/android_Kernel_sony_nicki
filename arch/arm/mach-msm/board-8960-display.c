@@ -603,6 +603,9 @@ void __init msm8960_mdp_writeback(struct memtype_reserve* reserve_table)
 		mdp_pdata.ov0_wb_size;
 	reserve_table[mdp_pdata.mem_hid].size +=
 		mdp_pdata.ov1_wb_size;
+
+	pr_info("mem_map: mdp reserved with size 0x%lx in pool\n",
+			mdp_pdata.ov0_wb_size + mdp_pdata.ov1_wb_size);
 #endif
 }
 
@@ -723,8 +726,6 @@ static struct platform_device hdmi_msm_device = {
 	.resource = hdmi_msm_resources,
 	.dev.platform_data = &hdmi_msm_data,
 };
-#else
-static int hdmi_panel_power(int on) { return 0; }
 #endif /* CONFIG_FB_MSM_HDMI_MSM_PANEL */
 
 #ifdef CONFIG_FB_MSM_WRITEBACK_MSM_PANEL
@@ -739,6 +740,8 @@ static struct platform_device wfd_device = {
 	.id            = -1,
 };
 #endif
+/* FIH-SW-MM-VH-DISPLAY-NICKI-09* */
+#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
 
 #ifdef CONFIG_MSM_BUS_SCALING
 static struct msm_bus_vectors dtv_bus_init_vectors[] = {
@@ -781,7 +784,6 @@ static struct lcdc_platform_data dtv_pdata = {
 };
 #endif
 
-#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
 static int hdmi_enable_5v(int on)
 {
 	/* TBD: PM8921 regulator instead of 8901 */
@@ -1023,9 +1025,13 @@ void __init msm8960_init_fb(void)
 
 	msm_fb_register_device("mdp", &mdp_pdata);
 	msm_fb_register_device("mipi_dsi", &mipi_dsi_pdata);
+/* FIH-MM-VH-DISPLAY-NICKI-09*[ */
+#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
 #ifdef CONFIG_MSM_BUS_SCALING
 	msm_fb_register_device("dtv", &dtv_pdata);
 #endif
+#endif
+/* FIH-MM-VH-DISPLAY-NICKI-09*] */
 }
 
 void __init msm8960_allocate_fb_region(void)
@@ -1055,11 +1061,14 @@ static void set_mdp_clocks_for_wuxga(void)
 	mdp_720p_vectors[0].ib = 2000000000;
 	mdp_1080p_vectors[0].ab = 2000000000;
 	mdp_1080p_vectors[0].ib = 2000000000;
-
+/* FIH-MM-VH-DISPLAY-NICKI-09*[ */
+#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
 	if (hdmi_is_primary) {
 		dtv_bus_def_vectors[0].ab = 2000000000;
 		dtv_bus_def_vectors[0].ib = 2000000000;
 	}
+#endif
+/* FIH-MM-VH-DISPLAY-NICKI-09*] */
 }
 
 void __init msm8960_set_display_params(char *prim_panel, char *ext_panel)

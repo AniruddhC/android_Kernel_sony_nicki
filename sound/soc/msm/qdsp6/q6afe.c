@@ -1,4 +1,5 @@
 /* Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1794,11 +1795,11 @@ static int __init afe_init(void)
 	this_afe.apr = NULL;
 #ifdef CONFIG_DEBUG_FS
 	debugfs_afelb = debugfs_create_file("afe_loopback",
-	0220, NULL, (void *) "afe_loopback",
+	0200, NULL, (void *) "afe_loopback",  /* MM-NC-FilePermission-00 */
 	&afe_debug_fops);
 
 	debugfs_afelb_gain = debugfs_create_file("afe_loopback_gain",
-	0220, NULL, (void *) "afe_loopback_gain",
+	0200, NULL, (void *) "afe_loopback_gain",  /* MM-NC-FilePermission-00 */
 	&afe_debug_fops);
 
 

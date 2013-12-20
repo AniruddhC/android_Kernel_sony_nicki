@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -177,6 +178,7 @@ static int msm8930_cfg_spkr_gpio(int gpio,
 
 	return ret;
 }
+static struct mutex cdc_mclk_mutex;/* MM-CL-NIKDS01083-00+ */
 
 static void msm8960_ext_spk_power_amp_on(u32 spk)
 {
@@ -322,7 +324,7 @@ static int msm8930_spkramp_event(struct snd_soc_dapm_widget *w,
 	}
 	return 0;
 }
-
+/* MM-CL-NIKDS01083-00*[ */
 static int msm8930_enable_codec_ext_clk(
 		struct snd_soc_codec *codec, int enable,
 		bool dapm)
@@ -364,6 +366,7 @@ static int msm8930_enable_codec_ext_clk(
 	mutex_unlock(&cdc_mclk_mutex);
 	return r;
 }
+/* MM-CL-NIKDS01083-00*] */
 
 static bool msm8930_swap_gnd_mic(struct snd_soc_codec *codec)
 {
@@ -398,6 +401,8 @@ static const struct snd_soc_dapm_widget msm8930_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Ext Spk Left Pos", msm8930_spkramp_event),
 	SND_SOC_DAPM_SPK("Ext Spk Left Neg", msm8930_spkramp_event),
 
+
+	SND_SOC_DAPM_MIC("Handset Mic", NULL), /*SW-MM-RC-AnalogMic+*/
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Digital Mic1", NULL),
 	SND_SOC_DAPM_MIC("ANCRight Headset Mic", NULL),
@@ -421,17 +426,21 @@ static const struct snd_soc_dapm_route common_audio_map[] = {
 	/* Speaker path */
 	{"Ext Spk Left Pos", NULL, "LINEOUT1"},
 	{"Ext Spk Left Neg", NULL, "LINEOUT2"},
+/*SW-MM-RC-AnalogMic+[*/
+	{"AMIC3", NULL, "MIC BIAS1 External"},
+	{"MIC BIAS1 External", NULL, "Handset Mic"},
+/*SW-MM-RC-AnalogMic+]*/
 
 	/* Headset Mic */
 	{"AMIC2", NULL, "MIC BIAS2 External"},
 	{"MIC BIAS2 External", NULL, "Headset Mic"},
 
 	/* Microphone path */
-	{"AMIC1", NULL, "MIC BIAS2 External"},
-	{"MIC BIAS2 External", NULL, "ANCLeft Headset Mic"},
+	{"AMIC1", NULL, "MIC BIAS1 External"},
+	{"MIC BIAS1 External", NULL, "ANCLeft Headset Mic"},
 
-	{"AMIC3", NULL, "MIC BIAS2 External"},
-	{"MIC BIAS2 External", NULL, "ANCRight Headset Mic"},
+	{"AMIC3", NULL, "MIC BIAS1 External"},
+	{"MIC BIAS1 External", NULL, "ANCRight Headset Mic"},
 
 	{"HEADPHONE", NULL, "LDO_H"},
 
@@ -697,7 +706,7 @@ static void *def_sitar_mbhc_cal(void)
 	S(mic_current, SITAR_PID_MIC_5_UA);
 	S(hph_current, SITAR_PID_MIC_5_UA);
 	S(t_mic_pid, 100);
-	S(t_ins_complete, 250);
+	S(t_ins_complete, 800);/*MM-SC-HS_Detect_Workaround-00, enlarge delay time from 250 to 800ms*/
 	S(t_ins_retry, 200);
 #undef S
 #define S(X, Y) ((SITAR_MBHC_CAL_PLUG_TYPE_PTR(sitar_cal)->X) = (Y))
@@ -720,21 +729,21 @@ static void *def_sitar_mbhc_cal(void)
 	btn_low = sitar_mbhc_cal_btn_det_mp(btn_cfg, SITAR_BTN_DET_V_BTN_LOW);
 	btn_high = sitar_mbhc_cal_btn_det_mp(btn_cfg, SITAR_BTN_DET_V_BTN_HIGH);
 	btn_low[0] = -50;
-	btn_high[0] = 10;
-	btn_low[1] = 11;
-	btn_high[1] = 38;
-	btn_low[2] = 39;
-	btn_high[2] = 64;
-	btn_low[3] = 65;
-	btn_high[3] = 91;
-	btn_low[4] = 92;
-	btn_high[4] = 115;
-	btn_low[5] = 116;
-	btn_high[5] = 141;
-	btn_low[6] = 142;
-	btn_high[6] = 163;
-	btn_low[7] = 164;
-	btn_high[7] = 250;
+	btn_high[0] = 100;/*SW-MM-RC-MBHC-02*/
+	btn_low[1] = 101;/*SW-MM-RC-MBHC-02*/
+	btn_high[1] = 250;/*SW-MM-RC-MBHC-01*/
+	btn_low[2] = 251;/*SW-MM-RC-MBHC-01*/
+	btn_high[2] = 400;/*SW-MM-RC-MBHC-01*/
+	btn_low[3] = 401;/*SW-MM-RC-MBHC-01*/
+	btn_high[3] = 700;/*SW-MM-RC-MBHC-01*/
+	btn_low[4] = 701;/*SW-MM-RC-MBHC-01*/
+	btn_high[4] = 800;/*SW-MM-RC-MBHC-01*/
+	btn_low[5] = 801;/*SW-MM-RC-MBHC-01*/
+	btn_high[5] = 900;/*SW-MM-RC-MBHC-01*/
+	btn_low[6] = 901;/*SW-MM-RC-MBHC-01*/
+	btn_high[6] = 1000;/*SW-MM-RC-MBHC-01*/
+	btn_low[7] = 1001;/*SW-MM-RC-MBHC-01*/
+	btn_high[7] = 1100;/*SW-MM-RC-MBHC-01*/
 	n_ready = sitar_mbhc_cal_btn_det_mp(btn_cfg, SITAR_BTN_DET_N_READY);
 	n_ready[0] = 48;
 	n_ready[1] = 38;
@@ -926,6 +935,8 @@ static int msm8930_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
+/* MM-NC-AUDIO_HDMI-00-[+ */
+#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
 static int msm8930_hdmi_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					struct snd_pcm_hw_params *params)
 {
@@ -943,6 +954,8 @@ static int msm8930_hdmi_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	return 0;
 }
+#endif
+/* MM-NC-AUDIO_HDMI-00-]- */
 
 static int msm8930_btsco_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					struct snd_pcm_hw_params *params)
@@ -1388,6 +1401,8 @@ static struct snd_soc_dai_link msm8930_dai[] = {
 		.be_hw_params_fixup = msm8930_be_hw_params_fixup,
 	},
 	/* HDMI BACK END DAI Link */
+/* MM-NC-AUDIO_HDMI-00-[+ */
+#ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL
 	{
 		.name = LPASS_BE_HDMI,
 		.stream_name = "HDMI Playback",
@@ -1400,6 +1415,8 @@ static struct snd_soc_dai_link msm8930_dai[] = {
 		.be_hw_params_fixup = msm8930_hdmi_be_hw_params_fixup,
 		.ignore_pmdown_time = 1, /* this dainlink has playback support */
 	},
+#endif
+/* MM-NC-AUDIO_HDMI-00-]- */
 	/* Backend AFE DAI Links */
 	{
 		.name = LPASS_BE_AFE_PCM_RX,

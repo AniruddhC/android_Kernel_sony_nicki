@@ -30,8 +30,12 @@ enum {
 	DEBUG_SUSPEND = 1U << 2,
 	DEBUG_EXPIRE = 1U << 3,
 	DEBUG_WAKE_LOCK = 1U << 4,
+	DEBUG_POLLING_DUMP_WAKELOCK = 1U << 5,	/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+[ */
+	DEBUG_PMS_WAKE_LOCK = 1U << 6,  //CORE-SC-PMSWakelockInfo-00+
 };
+
 static int debug_mask = DEBUG_EXIT_SUSPEND | DEBUG_WAKEUP;
+
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 #define WAKE_LOCK_TYPE_MASK              (0x0f)
@@ -39,7 +43,9 @@ module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 #define WAKE_LOCK_ACTIVE                 (1U << 9)
 #define WAKE_LOCK_AUTO_EXPIRE            (1U << 10)
 #define WAKE_LOCK_PREVENTING_SUSPEND     (1U << 11)
-
+/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+[ */
+#define POLLING_DUMP_WAKELOCK_SECS	(45)
+/*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+] */
 static DEFINE_SPINLOCK(list_lock);
 static LIST_HEAD(inactive_locks);
 static struct list_head active_wake_locks[WAKE_LOCK_TYPE_COUNT];
@@ -259,8 +265,12 @@ long has_wake_lock(int type)
 	unsigned long irqflags;
 	spin_lock_irqsave(&list_lock, irqflags);
 	ret = has_wake_lock_locked(type);
-	if (ret && (debug_mask & DEBUG_WAKEUP) && type == WAKE_LOCK_SUSPEND)
+
+	if (ret && (debug_mask & DEBUG_SUSPEND) && (type == WAKE_LOCK_SUSPEND))
+	{   
 		print_active_locks(type);
+	}
+
 	spin_unlock_irqrestore(&list_lock, irqflags);
 	return ret;
 }
@@ -381,6 +391,7 @@ static void suspend(struct work_struct *work)
 			pr_info("suspend: pm_suspend returned with no event\n");
 		wake_lock_timeout(&unknown_wakeup, HZ / 2);
 	}
+	
 }
 static DECLARE_WORK(suspend_work, suspend);
 

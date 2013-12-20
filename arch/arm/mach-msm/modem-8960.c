@@ -28,6 +28,7 @@
 #include <mach/subsystem_notif.h>
 #include <mach/socinfo.h>
 #include <mach/msm_smsm.h>
+#include <linux/fih_sw_info.h> //MTD-KERNEL-DL-PWRON_CAUSE-00 +
 
 #include "smd_private.h"
 #include "modem_notifier.h"
@@ -36,9 +37,11 @@
 static int crash_shutdown;
 
 static struct subsys_device *modem_8960_dev;
+static void *fatal_error_buffer_virt_addr = 0; //CORE-DL-AddInitStringForMtbf-00
 
 #define MAX_SSR_REASON_LEN 81U
 
+void write_pwron_cause (int pwron_cause); //MTD-KERNEL-DL-PWRON_CAUSE-00 +
 static void log_modem_sfr(void)
 {
 	u32 size;
@@ -56,6 +59,13 @@ static void log_modem_sfr(void)
 
 	size = min(size, MAX_SSR_REASON_LEN-1);
 	memcpy(reason, smem_reason, size);
+//CORE-DL-AddInitStringForMtbf-00 +[
+	if (fatal_error_buffer_virt_addr != NULL) {
+		memcpy(fatal_error_buffer_virt_addr, smem_reason, size);
+	} else {
+		pr_err("modem fatal driver: fatal_error_buffer_virt_addr is Null!\n");
+	}
+//CORE-DL-AddInitStringForMtbf-00 +]
 	reason[size] = '\0';
 	pr_err("modem subsystem failure reason: %s.\n", reason);
 
@@ -76,6 +86,10 @@ static void smsm_state_cb(void *data, uint32_t old_state, uint32_t new_state)
 		return;
 
 	if (new_state & SMSM_RESET) {
+//MTD-KERNEL-DL-PWRON_CAUSE-00 +[
+		pr_err("Modem Fatal Error. Let's note!\n");
+		write_pwron_cause(MODEM_FATAL_ERR);
+//MTD-KERNEL-DL-PWRON_CAUSE-00 +]
 		pr_err("Probable fatal error on the modem.\n");
 		restart_modem();
 	}
@@ -192,10 +206,18 @@ static irqreturn_t modem_wdog_bite_irq(int irq, void *dev_id)
 	switch (irq) {
 
 	case Q6SW_WDOG_EXPIRED_IRQ:
+//MTD-KERNEL-DL-PWRON_CAUSE-00 +[
+		pr_err("Modem SW_WDOG timeout. Let's note!\n");
+		write_pwron_cause(MODEM_SW_WDOG_EXPIRED);
+//MTD-KERNEL-DL-PWRON_CAUSE-00 +]
 		pr_err("Watchdog bite received from modem software!\n");
 		restart_modem();
 		break;
 	case Q6FW_WDOG_EXPIRED_IRQ:
+//MTD-KERNEL-DL-PWRON_CAUSE-00 +[
+		pr_err("Modem FW_WDOG timeout. Let's note!\n");
+		write_pwron_cause(MODEM_FW_WDOG_EXPIRED);
+//MTD-KERNEL-DL-PWRON_CAUSE-00 +]
 		pr_err("Watchdog bite received from modem firmware!\n");
 		restart_modem();
 		break;
@@ -257,6 +279,16 @@ static int modem_debugfs_init(void)
 static int __init modem_8960_init(void)
 {
 	int ret;
+
+//CORE-DL-AddInitStringForMtbf-00 +[
+	if (unlikely(fatal_error_buffer_virt_addr == 0)){
+		fatal_error_buffer_virt_addr = ioremap(STORE_FATAL_ERROR_REASON, DIAG_BUFFER_LEN);
+		if (fatal_error_buffer_virt_addr == NULL) {
+			pr_err("%s: fatal_error_buffer_virt_addr is Null!\n",
+					__func__);
+		}
+	}
+//CORE-DL-AddInitStringForMtbf-00 +]
 
 	if (soc_class_is_apq8064())
 		return -ENODEV;

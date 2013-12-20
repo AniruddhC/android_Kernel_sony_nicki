@@ -1,6 +1,7 @@
 /* arch/arm/mach-msm/include/mach/board.h
  *
  * Copyright (C) 2007 Google, Inc.
+ * Copyright(C) 2013 Foxconn International Holdings, Ltd. All rights.
  * Copyright (c) 2008-2013, The Linux Foundation. All rights reserved.
  * Author: Brian Swetland <swetland@google.com>
  *
@@ -112,6 +113,7 @@ struct msm_camera_sensor_flash_current_driver {
 enum msm_camera_ext_led_flash_id {
 	MAM_CAMERA_EXT_LED_FLASH_SC628A,
 	MAM_CAMERA_EXT_LED_FLASH_TPS61310,
+	MAM_CAMERA_EXT_LED_FLASH_LM3642,//FIH-SW-MM-MC-BringUpLM3642ForCameraFlashLed-00+
 };
 
 struct msm_camera_sensor_flash_external {
@@ -233,6 +235,9 @@ enum msm_camera_actuator_name {
 	MSM_ACTUATOR_MAIN_CAM_3,
 	MSM_ACTUATOR_MAIN_CAM_4,
 	MSM_ACTUATOR_MAIN_CAM_5,
+	MSM_ACTUATOR_MAIN_CAM_FIH_6,//FIH-SW-MM-MC-ImplementCameraAutoFocusForS5K4E1-00+
+	MSM_ACTUATOR_MAIN_CAM_FIH_7,//FIH-SW-MM-MC-BringUpAD5823ForAF-00+
+	MSM_ACTUATOR_MAIN_CAM_FIH_8,//MM-MC-BringUpAD5816ForAfOfLitenCustomizationModule-00+
 	MSM_ACTUATOR_WEB_CAM_0,
 	MSM_ACTUATOR_WEB_CAM_1,
 	MSM_ACTUATOR_WEB_CAM_2,
@@ -432,7 +437,8 @@ struct mddi_platform_data {
 struct mipi_dsi_platform_data {
 	int vsync_gpio;
 	int (*dsi_power_save)(int on);
-	int (*dsi_client_reset)(void);
+/* FIH-SW-MM-VH-DISPLAY-NICKI-00+ */
+	int (*dsi_client_reset)(int hold);
 	int (*get_lane_config)(void);
 	char (*splash_is_enabled)(void);
 	int target_type;
@@ -492,6 +498,7 @@ struct msm_hdmi_platform_data {
 	int (*gpio_config)(int on);
 	int (*init_irq)(void);
 	bool (*check_hdcp_hw_support)(void);
+	bool (*source)(void);
 	bool is_mhl_enabled;
 };
 

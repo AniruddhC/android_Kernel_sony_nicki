@@ -1,4 +1,6 @@
-/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
+ * Copyright(C) 2013 Foxconn International Holdings, Ltd. All rights.
+ * Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -226,6 +228,7 @@ static int32_t msm_actuator_move_focus(
 	uint16_t curr_lens_pos = 0;
 	int dir = move_params->dir;
 	int32_t num_steps = move_params->num_steps;
+    struct msm_camera_i2c_client *af_client = NULL;//MM-MC-BringUpAD5816ForAfOfLitenCustomizationModule-00+
 
 	CDBG("%s called, dir %d, num_steps %d\n",
 		__func__,
@@ -291,9 +294,23 @@ static int32_t msm_actuator_move_focus(
 		a_ctrl->curr_step_pos = target_step_pos;
 	}
 
-	rc = msm_camera_i2c_write_table_w_microdelay(&a_ctrl->i2c_client,
-		a_ctrl->i2c_reg_tbl, a_ctrl->i2c_tbl_index,
-		a_ctrl->i2c_data_type);
+    //MM-MC-BringUpAD5816ForAfOfLitenCustomizationModule-00+{
+    af_client = &a_ctrl->i2c_client;
+
+    if (af_client->client->addr == 0x1C)//AD5816
+    {
+    	rc = msm_camera_i2c_write_table_w_microdelay(&a_ctrl->i2c_client,
+    		a_ctrl->i2c_reg_tbl, a_ctrl->i2c_tbl_index,
+    		MSM_CAMERA_I2C_WORD_DATA);
+    }
+    else
+    {
+        rc = msm_camera_i2c_write_table_w_microdelay(&a_ctrl->i2c_client,
+            a_ctrl->i2c_reg_tbl, a_ctrl->i2c_tbl_index,
+            a_ctrl->i2c_data_type);
+    }
+    //MM-MC-BringUpAD5816ForAfOfLitenCustomizationModule-00+}
+    
 	if (rc < 0) {
 		pr_err("%s: i2c write error:%d\n",
 			__func__, rc);

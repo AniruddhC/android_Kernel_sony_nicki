@@ -66,8 +66,8 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/msm_hsusb.h>
-#include <linux/tracepoint.h>
-#include <mach/usb_trace.h>
+/*CONN-EH-USBPROBE-00-*///#include <linux/tracepoint.h>
+/*CONN-EH-USBPROBE-00-*///#include <mach/usb_trace.h>
 #include "ci13xxx_udc.h"
 
 /* Turns on streaming. overrides CI13XXX_DISABLE_STREAMING */
@@ -140,6 +140,7 @@ static int ffs_nr(u32 x)
 	return n ? n-1 : 32;
 }
 
+#if 0/*CONN-EH-USBPROBE-00-{*/
 struct ci13xxx_ebi_err_entry {
 	u32 *usb_req_buf;
 	u32 usb_req_length;
@@ -154,6 +155,7 @@ struct ci13xxx_ebi_err_data {
 	struct ci13xxx_ebi_err_entry *ebi_err_entry;
 };
 static struct ci13xxx_ebi_err_data *ebi_err_data;
+#endif/*CONN-EH-USBPROBE-00-}*/
 
 /******************************************************************************
  * HW block
@@ -1760,6 +1762,7 @@ __maybe_unused static int dbg_remove_files(struct device *dev)
 	return 0;
 }
 
+#if 0/*CONN-EH-USBPROBE-00-{*/
 static void dump_usb_info(void *ignore, unsigned int ebi_addr,
 	unsigned int ebi_apacket0, unsigned int ebi_apacket1)
 {
@@ -1825,7 +1828,7 @@ static void dump_usb_info(void *ignore, unsigned int ebi_addr,
 	}
 	spin_unlock_irqrestore(udc->lock, flags);
 }
-
+#endif/*CONN-EH-USBPROBE-00-}*/
 /******************************************************************************
  * UTIL block
  *****************************************************************************/
@@ -2273,8 +2276,8 @@ static int _gadget_stop_activity(struct usb_gadget *gadget)
 	gadget->otg_srp_reqd = 0;
 
 	udc->driver->disconnect(gadget);
-	usb_ep_fifo_flush(&udc->ep0out.ep);
-	usb_ep_fifo_flush(&udc->ep0in.ep);
+	_ep_nuke(&udc->ep0out);
+	_ep_nuke(&udc->ep0in);
 
 	if (udc->ep0in.last_zptr) {
 		dma_pool_free(udc->ep0in.td_pool, udc->ep0in.last_zptr,
@@ -2313,7 +2316,7 @@ __acquires(udc->lock)
 
 	/*stop charging upon reset */
 	if (udc->transceiver)
-		usb_phy_set_power(udc->transceiver, 0);
+		usb_phy_set_power(udc->transceiver, 100);
 
 	retval = _gadget_stop_activity(&udc->gadget);
 	if (retval)
@@ -3017,21 +3020,24 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 
 	trace("%p, %p, %X", ep, req, gfp_flags);
 
-	if (ep == NULL || req == NULL || mEp->desc == NULL)
-		return -EINVAL;
-
-	if (!udc->softconnect)
-		return -ENODEV;
-
 	spin_lock_irqsave(mEp->lock, flags);
+	if (ep == NULL || req == NULL || mEp->desc == NULL) {
+		retval = -EINVAL;
+		goto done;
+	}
+
+	if (!udc->softconnect) {
+		retval = -ENODEV;
+		goto done;
+	}
 
 	if (!udc->configured && mEp->type !=
 		USB_ENDPOINT_XFER_CONTROL) {
-		spin_unlock_irqrestore(mEp->lock, flags);
 		trace("usb is not configured"
 			"ept #%d, ept name#%s\n",
 			mEp->num, mEp->ep.name);
-		return -ESHUTDOWN;
+		retval = -ESHUTDOWN;
+		goto done;
 	}
 
 	if (mEp->type == USB_ENDPOINT_XFER_CONTROL) {
@@ -3111,12 +3117,19 @@ static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 
 	trace("%p, %p", ep, req);
 
+	spin_lock_irqsave(mEp->lock, flags);
+	/*
+	 * Only ep0 IN is exposed to composite.  When a req is dequeued
+	 * on ep0, check both ep0 IN and ep0 OUT queues.
+	 */
 	if (ep == NULL || req == NULL || mReq->req.status != -EALREADY ||
 		mEp->desc == NULL || list_empty(&mReq->queue) ||
-		list_empty(&mEp->qh.queue))
+		(list_empty(&mEp->qh.queue) && ((mEp->type !=
+			USB_ENDPOINT_XFER_CONTROL) ||
+			list_empty(&_udc->ep0out.qh.queue)))) {
+		spin_unlock_irqrestore(mEp->lock, flags);
 		return -EINVAL;
-
-	spin_lock_irqsave(mEp->lock, flags);
+	}
 
 	dbg_event(_usb_addr(mEp), "DEQUEUE", 0);
 
@@ -3768,11 +3781,12 @@ static int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 	pm_runtime_no_callbacks(&udc->gadget.dev);
 	pm_runtime_enable(&udc->gadget.dev);
 
+#if 0/*CONN-EH-USBPROBE-00-{*/
 	retval = register_trace_usb_daytona_invalid_access(dump_usb_info,
 								NULL);
 	if (retval)
 		pr_err("Registering trace failed\n");
-
+#endif/*CONN-EH-USBPROBE-00-}*/
 	_udc = udc;
 	return retval;
 
@@ -3806,17 +3820,18 @@ free_udc:
 static void udc_remove(void)
 {
 	struct ci13xxx *udc = _udc;
-	int retval;
+/*CONN-EH-USBPROBE-00-*///int retval;
 
 	if (udc == NULL) {
 		err("EINVAL");
 		return;
 	}
+#if 0/*CONN-EH-USBPROBE-00-{*/
 	retval = unregister_trace_usb_daytona_invalid_access(dump_usb_info,
 									NULL);
 	if (retval)
 		pr_err("Unregistering trace failed\n");
-
+#endif/*CONN-EH-USBPROBE-00-}*/
 	usb_del_gadget_udc(&udc->gadget);
 
 	if (udc->transceiver) {

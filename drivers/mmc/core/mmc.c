@@ -483,7 +483,8 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 				pr_info("%s: BKOPS_EN bit is not set\n",
 					mmc_hostname(card->host));
 		}
-
+		pr_info("%s: card->ext_csd.bkops_en = %d\n",
+			mmc_hostname(card->host),card->ext_csd.bkops_en);
 		/* check whether the eMMC card supports HPI */
 		if (ext_csd[EXT_CSD_HPI_FEATURES] & 0x1) {
 			card->ext_csd.hpi = 1;
@@ -1382,9 +1383,12 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		if (card->ext_csd.bkops_en) {
 			INIT_DELAYED_WORK(&card->bkops_info.dw,
 					  mmc_start_idle_time_bkops);
+			/* BSP-ELuo-Patch_Reomve_the_polling_for_BKOPS-00 +[ */		  
+			#if 0 		  
 			INIT_WORK(&card->bkops_info.poll_for_completion,
 				  mmc_bkops_completion_polling);
-
+			#endif
+			/* BSP-ELuo-Patch_Reomve_the_polling_for_BKOPS-00 ]+ */	
 			/*
 			 * Calculate the time to start the BKOPs checking.
 			 * The host controller can set this time in order to

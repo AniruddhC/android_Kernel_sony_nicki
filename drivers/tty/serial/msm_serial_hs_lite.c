@@ -48,6 +48,12 @@
 #include <asm/mach-types.h>
 #include "msm_serial_hs_hwreg.h"
 
+/* CORE-HC-dynamically_disable_UART-01+[ */
+#if defined(CONFIG_FIH_REMOVE_SERIAL_DYNAMICALLY) && defined(CONFIG_FIH_SEMC_S1)
+extern unsigned int debug_uartmsg_enable;
+#endif
+/* CORE-HC-dynamically_disable_UART-01+] */
+
 #ifdef CONFIG_MACH_APQ8064_MAKO
 /* HACK: earjack noise due to HW flaw. disable console to avoid this issue */
 extern int mako_console_stopped(void);
@@ -1573,6 +1579,16 @@ static int __init msm_serial_hsl_init(void)
 {
 	int ret;
 
+/* CORE-HC-dynamically_disable_UART-01+[ */
+#if defined(CONFIG_FIH_REMOVE_SERIAL_DYNAMICALLY) && defined(CONFIG_FIH_SEMC_S1)
+	if( !debug_uartmsg_enable )
+	{
+		pr_info("%s(): Disable UART console\n", __func__);
+		return 0;
+	}
+#endif
+/* CORE-HC-dynamically_disable_UART-01+] */
+
 	ret = uart_register_driver(&msm_hsl_uart_driver);
 	if (unlikely(ret))
 		return ret;
@@ -1592,6 +1608,15 @@ static int __init msm_serial_hsl_init(void)
 
 static void __exit msm_serial_hsl_exit(void)
 {
+
+/* CORE-HC-dynamically_disable_UART-01+[ */
+#if defined(CONFIG_FIH_REMOVE_SERIAL_DYNAMICALLY) && defined(CONFIG_FIH_SEMC_S1)
+	if( !debug_uartmsg_enable )
+	{
+        return;
+    }
+#endif
+/* CORE-HC-dynamically_disable_UART-01+] */
 	debugfs_remove_recursive(debug_base);
 #ifdef CONFIG_SERIAL_MSM_HSL_CONSOLE
 	unregister_console(&msm_hsl_console);

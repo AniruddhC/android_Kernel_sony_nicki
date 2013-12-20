@@ -166,6 +166,7 @@ static int ci13xxx_msm_probe(struct platform_device *pdev)
 	int ret;
 
 	dev_dbg(&pdev->dev, "ci13xxx_msm_probe\n");
+	printk(KERN_INFO "USB: ci13xxx_msm_probe\n");/*MTD-CONN-EH-USBPORTING-00+*/
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {

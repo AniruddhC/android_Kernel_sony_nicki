@@ -1,4 +1,5 @@
 /* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+ *  Copyright(C) 2013 Foxconn International Holdings, Ltd. All rights.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -122,6 +123,16 @@ int32_t msm_sensor_write_res_settings(struct msm_sensor_ctrl_t *s_ctrl,
 		s_ctrl->msm_sensor_reg->mode_settings, res);
 	if (rc < 0)
 		return rc;
+    
+    //FIH-SW-MM-MC-BringUpCameraYUVSensorForHM03D5-00+{
+    if (s_ctrl->sensor_output_reg_addr->x_output == 0xFFFF && 
+        s_ctrl->sensor_output_reg_addr->y_output == 0xFFFF)
+    {
+        printk("msm_sensor_write_res_settings: ByPass msm_sensor_write_output_settings() for %s\n"
+                , s_ctrl->sensordata->sensor_name);
+        return 0;
+    }
+    //FIH-SW-MM-MC-BringUpCameraYUVSensorForHM03D5-00+}
 
 	rc = msm_sensor_write_output_settings(s_ctrl, res);
 	if (rc < 0)
