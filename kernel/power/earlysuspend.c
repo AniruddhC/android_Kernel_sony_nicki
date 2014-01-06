@@ -20,6 +20,7 @@
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
 
+
 #include "power.h"
 
 enum {
@@ -43,6 +44,7 @@ enum {
 	SUSPEND_REQUESTED_AND_SUSPENDED = SUSPEND_REQUESTED | SUSPENDED,
 };
 static int state;
+void check_power_key_skip_count( void ); //CORE-SC-PowerKeySuspendLock-00+
 
 void register_early_suspend(struct early_suspend *handler)
 {
@@ -101,13 +103,16 @@ static void early_suspend(struct work_struct *work)
 		}
 	}
 	mutex_unlock(&early_suspend_lock);
+	
 
-	suspend_sys_sync_queue();
+		suspend_sys_sync_queue();
+	
 abort:
 	spin_lock_irqsave(&state_lock, irqflags);
 	if (state == SUSPEND_REQUESTED_AND_SUSPENDED)
 		wake_unlock(&main_wake_lock);
 	spin_unlock_irqrestore(&state_lock, irqflags);
+
 }
 
 static void late_resume(struct work_struct *work)

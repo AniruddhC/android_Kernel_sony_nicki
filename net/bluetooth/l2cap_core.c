@@ -1808,6 +1808,11 @@ struct sk_buff *l2cap_create_iframe_pdu(struct sock *sk,
 	BT_DBG("sk %p, msg %p, len %d, sdulen %d, hlen %d",
 		sk, msg, (int)len, (int)sdulen, hlen);
 
+    if (!l2cap_pi(sk)->conn){
+    	BT_ERR("l2cap_pi(sk)->conn is NULL, return error");
+		return ERR_PTR(err);
+	}
+
 	count = min_t(unsigned int, (l2cap_pi(sk)->conn->mtu - hlen), len);
 
 	/* Allocate extra headroom for Qualcomm PAL.  This is only
@@ -2438,6 +2443,11 @@ int l2cap_segment_sdu(struct sock *sk, struct sk_buff_head* seg_queue,
 		skb = l2cap_create_iframe_pdu(sk, msg, pdu_len, sdu_len, reseg);
 
 		BT_DBG("iframe skb %p", skb);
+		
+		if(!skb){
+			BT_ERR("skb is NULL, return error");
+			return err;
+		}
 
 		if (IS_ERR(skb)) {
 			__skb_queue_purge(seg_queue);

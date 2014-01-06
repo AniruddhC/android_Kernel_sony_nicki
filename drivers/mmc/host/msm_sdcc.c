@@ -1256,6 +1256,7 @@ msmsdcc_start_data(struct msmsdcc_host *host, struct mmc_data *data,
 	unsigned long long clks;
 	void __iomem *base = host->base;
 	unsigned int pio_irqmask = 0;
+	struct mmc_host *mmc = host->mmc;  /*BSP-Eluo-Increase_Data_Timeout-00*/
 
 	BUG_ON(!data->sg);
 	BUG_ON(!data->sg_len);
@@ -1309,6 +1310,13 @@ msmsdcc_start_data(struct msmsdcc_host *host, struct mmc_data *data,
 					   (host->clk_rate / 2);
 	else
 		clks = (unsigned long long)data->timeout_ns * host->clk_rate;
+
+	/*BSP-Eluo-Increase_Data_Timeout-00 +[*/		
+	if ((mmc->card) && (mmc->card->quirks & MMC_QUIRK_INAND_DATA_TIMEOUT))
+		clks = (unsigned long long)(5000000000 * host->clk_rate);
+	else
+		clks = (unsigned long long)data->timeout_ns * host->clk_rate;
+	/*BSP-Eluo-Increase_Data_Timeout-00 ]+*/
 
 	do_div(clks, 1000000000UL);
 	timeout = data->timeout_clks + (unsigned int)clks*2 ;

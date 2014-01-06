@@ -436,7 +436,7 @@ out:
 }
 EXPORT_SYMBOL(mmc_start_bkops);
 
-/**
+/*
  * mmc_start_idle_time_bkops() - check if a non urgent BKOPS is
  * needed
  * @work:	The idle time BKOPS work
@@ -766,7 +766,7 @@ int mmc_stop_bkops(struct mmc_card *card)
 	if (!mmc_card_doing_bkops(card))
 		goto out;
 
-	/*
+        /*
 	 * If idle time bkops is running on the card, let's not get into
 	 * suspend.
 	 */

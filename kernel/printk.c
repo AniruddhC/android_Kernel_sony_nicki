@@ -352,7 +352,9 @@ static int syslog_action_restricted(int type)
 	if (dmesg_restrict)
 		return 1;
 	/* Unless restricted, we allow "read all" and "get buffer size" for everybody */
-	return type != SYSLOG_ACTION_READ_ALL && type != SYSLOG_ACTION_SIZE_BUFFER;
+    /* FIH-SW3-KERNEL-TH-add_SYSLOG_ACTION_READ-00*[ */
+	return type != SYSLOG_ACTION_READ_ALL && type != SYSLOG_ACTION_SIZE_BUFFER && type != SYSLOG_ACTION_READ;
+    /* FIH-SW3-KERNEL-TH-add_SYSLOG_ACTION_READ-00*] */
 }
 
 static int check_syslog_permissions(int type, bool from_file)
@@ -1163,7 +1165,10 @@ int update_console_cmdline(char *name, int idx, char *name_new, int idx_new, cha
 	return -1;
 }
 
-bool console_suspend_enabled = 1;
+/*CORE-TH-ConsoleSuspendLog-00+*/
+bool console_suspend_enabled = 0;
+/*CORE-TH-ConsoleSuspendLog-00-*/
+
 EXPORT_SYMBOL(console_suspend_enabled);
 
 static int __init console_suspend_disable(char *str)

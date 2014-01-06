@@ -900,7 +900,7 @@ static void __init fill_pmd_gaps(void)
 #endif
 
 static void * __initdata vmalloc_min =
-	(void *)(VMALLOC_END - (240 << 20) - VMALLOC_OFFSET);
+	(void *)(VMALLOC_END - (CONFIG_VMALLOC_RESERVE) - VMALLOC_OFFSET);  /* CORE-HC-Vmalloc_Size-00* */
 
 /*
  * vmalloc=size forces the vmalloc area to be exactly 'size'

@@ -40,6 +40,7 @@ struct pmic8xxx_pwrkey {
 	const struct pm8xxx_pwrkey_platform_data *pdata;
 };
 
+
 static irqreturn_t pwrkey_press_irq(int irq, void *_pwrkey)
 {
 	struct pmic8xxx_pwrkey *pwrkey = _pwrkey;
@@ -51,8 +52,9 @@ static irqreturn_t pwrkey_press_irq(int irq, void *_pwrkey)
 		pwrkey->press = true;
 	}
 
-	input_report_key(pwrkey->pwr, KEY_POWER, 1);
-	input_sync(pwrkey->pwr);
+		input_report_key(pwrkey->pwr, KEY_POWER, 1);
+		input_sync(pwrkey->pwr);
+		pr_info( "PKEY : Power-Key down\n");
 
 	return IRQ_HANDLED;
 }
@@ -64,13 +66,15 @@ static irqreturn_t pwrkey_release_irq(int irq, void *_pwrkey)
 	if (pwrkey->press == false) {
 		input_report_key(pwrkey->pwr, KEY_POWER, 1);
 		input_sync(pwrkey->pwr);
+		pr_info("PKEY : Power-Key down\n");
 		pwrkey->press = true;
 	} else {
 		pwrkey->press = false;
 	}
 
-	input_report_key(pwrkey->pwr, KEY_POWER, 0);
-	input_sync(pwrkey->pwr);
+		input_report_key(pwrkey->pwr, KEY_POWER, 0);
+		input_sync(pwrkey->pwr);
+		pr_info( "PKEY : Power-Key up\n");
 
 	return IRQ_HANDLED;
 }
@@ -192,6 +196,7 @@ static int __devinit pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 	if (pwrkey->press) {
 		input_report_key(pwrkey->pwr, KEY_POWER, 1);
 		input_sync(pwrkey->pwr);
+		dev_info(&pdev->dev, "PKEY : Power-Key down\n");
 	}
 
 	err = request_any_context_irq(key_press_irq, pwrkey_press_irq,
@@ -260,7 +265,14 @@ static int __devinit pmic8xxx_pwrkey_init(void)
 	return platform_driver_register(&pmic8xxx_pwrkey_driver);
 }
 
+/*PERI-AH-POWERKEY_Change_init_API-00+[ */
+/* Because touch driver need init first then power key so change to use module_init */
+#if 0
 subsys_initcall(pmic8xxx_pwrkey_init);
+#else
+module_init(pmic8xxx_pwrkey_init);
+#endif
+/*PERI-AH-POWERKEY_Change_init_API-00+] */
 
 MODULE_ALIAS("platform:pmic8xxx_pwrkey");
 MODULE_DESCRIPTION("PMIC8XXX Power Key driver");

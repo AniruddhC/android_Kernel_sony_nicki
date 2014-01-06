@@ -483,7 +483,8 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 				pr_info("%s: BKOPS_EN bit is not set\n",
 					mmc_hostname(card->host));
 		}
-
+		pr_info("%s: card->ext_csd.bkops_en = %d\n",
+			mmc_hostname(card->host),card->ext_csd.bkops_en);
 		/* check whether the eMMC card supports HPI */
 		if (ext_csd[EXT_CSD_HPI_FEATURES] & 0x1) {
 			card->ext_csd.hpi = 1;

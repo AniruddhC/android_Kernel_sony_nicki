@@ -53,6 +53,7 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/unistd.h>
+#include <linux/fih_sw_info.h> //CORE-DL-AddPocForSwReset-00
 
 #ifndef SET_UNALIGN_CTL
 # define SET_UNALIGN_CTL(a,b)	(-EINVAL)
@@ -354,6 +355,7 @@ int unregister_reboot_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL(unregister_reboot_notifier);
 
+void write_pwron_cause (int pwron_cause); //CORE-DL-AddPocForSwReset-00
 /**
  *	kernel_restart - reboot the system
  *	@cmd: pointer to buffer containing command to execute for restart
@@ -365,6 +367,10 @@ EXPORT_SYMBOL(unregister_reboot_notifier);
 void kernel_restart(char *cmd)
 {
 	kernel_restart_prepare(cmd);
+//CORE-DL-AddPocForSwReset-00 +[
+	printk(KERN_EMERG "Software Reset. Let's note!\n");
+	write_pwron_cause(SOFTWARE_RESET);
+//CORE-DL-AddPocForSwReset-00 +[
 	if (!cmd)
 		printk(KERN_EMERG "Restarting system.\n");
 	else

@@ -593,6 +593,7 @@ static void sps_debugfs_init(void)
 			"reg_dump_option.\n");
 		goto reg_dump_option_err;
 	}
+    /*BSP-AlwaysChen-Chmod_For_CTS-00*[*/
 
 	dfile_testbus_sel = debugfs_create_u32("testbus_sel", 0664,
 						dent, &testbus_sel);
@@ -622,7 +623,7 @@ static void sps_debugfs_init(void)
 			"bam_addr.\n");
 		goto bam_addr_err;
 	}
-
+    /*BSP-AlwaysChen-Chmod_For_CTS-00*]*/
 	return;
 
 bam_addr_err:

@@ -21,7 +21,7 @@
 #include <linux/proc_fs.h>
 #include <linux/vmalloc.h>
 #include <linux/wakelock.h>
-#include <linux/avtimer.h>
+//#include <linux/avtimer.h> //Uncomment to enable VT Use case
 
 #include <media/v4l2-dev.h>
 #include <media/v4l2-ioctl.h>
@@ -700,6 +700,7 @@ static void msm_mctl_release(struct msm_cam_media_controller *p_mctl)
 	mutex_unlock(&p_mctl->lock);
 }
 
+
 int msm_mctl_init_user_formats(struct msm_cam_v4l2_device *pcam)
 {
 	struct v4l2_subdev *sd = pcam->sensor_sdev;
@@ -985,7 +986,7 @@ static int msm_mctl_dev_close(struct file *f)
 	    iounmap(pcam_inst->p_avtimer_lsw);
 	    iounmap(pcam_inst->p_avtimer_msw);
 	    //Turn OFF DSP/Enable power collapse
-	    avcs_core_disable_power_collapse(0);
+	    /*avcs_core_disable_power_collapse(0);*/ //Uncomment to enable VT Use case
 	    pcam_inst->avtimerOn = 0;
 	}
 
@@ -1103,9 +1104,9 @@ static int msm_mctl_v4l2_s_ctrl(struct file *f, void *pctx,
 		D("%s: mmap_inst=(0x%p, %d) AVTimer=%d\n",
 			 __func__, pcam_inst, pcam_inst->my_index, ctrl->value);
 		/*Kernel drivers to access AVTimer*/
-		avcs_core_open();
-		/*Turn ON DSP/Disable power collapse*/
-		avcs_core_disable_power_collapse(1);
+               /*avcs_core_open();*/ //Uncomment to enable VT Use case
+                 // Turn ON DSP/Disable power collapse
+               /*avcs_core_disable_power_collapse(1);*/ //Uncomment to enable VT Use case
 		pcam_inst->p_avtimer_lsw = ioremap(AVTIMER_LSW_PHY_ADDR, 4);
 		pcam_inst->p_avtimer_msw = ioremap(AVTIMER_MSW_PHY_ADDR, 4);
 	} else

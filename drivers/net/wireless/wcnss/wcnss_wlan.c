@@ -325,7 +325,6 @@ static ssize_t wcnss_version_show(struct device *dev,
 static DEVICE_ATTR(wcnss_version, S_IRUSR,
 		wcnss_version_show, NULL);
 
-
 void wcnss_riva_dump_pmic_regs(void)
 {
 	int i, rc;

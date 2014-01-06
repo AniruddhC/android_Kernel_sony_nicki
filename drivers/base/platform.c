@@ -683,7 +683,9 @@ static int platform_legacy_suspend(struct device *dev, pm_message_t mesg)
 	int ret = 0;
 
 	if (dev->driver && pdrv->suspend)
+	{
 		ret = pdrv->suspend(pdev, mesg);
+	}
 
 	return ret;
 }
@@ -695,7 +697,9 @@ static int platform_legacy_resume(struct device *dev)
 	int ret = 0;
 
 	if (dev->driver && pdrv->resume)
+	{
 		ret = pdrv->resume(pdev);
+	}
 
 	return ret;
 }

@@ -406,6 +406,10 @@ static void do_write_log(struct logger_log *log, const void *buf, size_t count)
 
 }
 
+static struct logger_log log_main;
+static struct logger_log log_events;
+static struct logger_log log_radio;
+
 /*
  * do_write_log_user - writes 'len' bytes from the user-space buffer 'buf' to
  * the log 'log'
@@ -449,17 +453,20 @@ ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	struct logger_log *log = file_get_log(iocb->ki_filp);
 	size_t orig = log->w_off;
 	struct logger_entry header;
+	struct user_logger_entry_compat header_v1; //MTD-KERNEL-BH-FixLastAlogForLoggerV2-00+
 	struct timespec now;
 	ssize_t ret = 0;
 
 	now = current_kernel_time();
 
-	header.pid = current->tgid;
-	header.tid = current->pid;
-	header.sec = now.tv_sec;
-	header.nsec = now.tv_nsec;
+	//MTD-KERNEL-TH-FixLastAlogForLoggerV2-00*[
+	header_v1.pid = header.pid = current->tgid;
+	header_v1.tid = header.tid = current->pid;
+	header_v1.sec = header.sec = now.tv_sec;
+	header_v1.nsec = header.nsec = now.tv_nsec;
+	//MTD-KERNEL-TH-FixLastAlogForLoggerV2-00*]
 	header.euid = current_euid();
-	header.len = min_t(size_t, iocb->ki_left, LOGGER_ENTRY_MAX_PAYLOAD);
+	header_v1.len = header.len = min_t(size_t, iocb->ki_left, LOGGER_ENTRY_MAX_PAYLOAD); //MTD-KERNEL-BH-FixLastAlogForLoggerV2-00*
 	header.hdr_size = sizeof(struct logger_entry);
 
 	/* null writes succeed, return zero */
@@ -475,6 +482,7 @@ ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	 * entries that encroach on readable buffer.
 	 */
 	fix_up_readers(log, sizeof(struct logger_entry) + header.len);
+
 
 	do_write_log(log, &header, sizeof(struct logger_entry));
 
