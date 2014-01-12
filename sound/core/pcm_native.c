@@ -1,7 +1,6 @@
 /*
  *  Digital Audio (PCM) abstract layer
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *  Copyright (C) 2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -36,7 +35,7 @@
 #include <sound/timer.h>
 #include <sound/minors.h>
 #include <asm/io.h>
-#include <linux/gpio.h>  /* MM-NC-HAC-00 */
+#include <linux/gpio.h>
 #if defined(CONFIG_MIPS) && defined(CONFIG_DMA_NONCOHERENT)
 #include <dma-coherence.h>
 #endif
@@ -450,7 +449,8 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 	runtime->silence_threshold = 0;
 	runtime->silence_size = 0;
 	runtime->boundary = runtime->buffer_size;
-	while (runtime->boundary * 2 * runtime->channels <= LONG_MAX - runtime->buffer_size) /* MM-AY-NIKSS03563-02-- */
+	while (runtime->boundary * 2 * runtime->channels <=
+					LONG_MAX - runtime->buffer_size)
 		runtime->boundary *= 2;
 
 	snd_pcm_timer_resolution_change(substream);
@@ -2608,7 +2608,6 @@ static int snd_pcm_common_ioctl1(struct file *file,
 	case SNDRV_COMPRESS_DRAIN:
 	case SNDRV_COMPRESS_METADATA_MODE:
 		return snd_compressed_ioctl(substream, cmd, arg);
-/* MM-NC-HAC-00-[+ */
 	case SNDRV_PCM_IOCTL_OPENHAC:
 	{     
 		if (gpio_request(79, "CDC_REV_EN") == 0) {
@@ -2631,7 +2630,6 @@ static int snd_pcm_common_ioctl1(struct file *file,
 		printk("__DISABLE HAC\n");
 		return 0;
 	}
-/* MM-NC-HAC-00-]- */
 	}
 	snd_printd("unknown ioctl = 0x%x\n", cmd);
 	return -ENOTTY;

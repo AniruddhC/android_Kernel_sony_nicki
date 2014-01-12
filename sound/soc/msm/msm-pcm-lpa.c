@@ -269,6 +269,7 @@ static int msm_pcm_restart(struct snd_pcm_substream *substream)
 	struct output_meta_data_st output_meta_data;
 
 	pr_err("%s\n", __func__);
+	memset(&output_meta_data, 0x0, sizeof(struct output_meta_data_st));
 	if (runtime->render_flag & SNDRV_RENDER_STOPPED) {
 		buf = prtd->audio_client->port[IN].buf;
 
@@ -485,7 +486,7 @@ static int msm_pcm_playback_close(struct snd_pcm_substream *substream)
 		pr_debug("%s\n", __func__);
 		rc = wait_event_timeout(the_locks.eos_wait,
 			prtd->cmd_ack, 5 * HZ);
-		if (rc < 0)
+		if (!rc)
 			pr_err("EOS cmd timeout\n");
 		prtd->pcm_irq_pos = 0;
 	}
@@ -645,7 +646,7 @@ static int msm_pcm_ioctl(struct snd_pcm_substream *substream,
 			pr_err("%s: flush cmd failed rc=%d\n", __func__, rc);
 		rc = wait_event_timeout(the_locks.eos_wait,
 			prtd->cmd_ack, 5 * HZ);
-		if (rc < 0)
+		if (!rc)
 			pr_err("Flush cmd timeout\n");
 		prtd->pcm_irq_pos = 0;
 		break;

@@ -2,7 +2,6 @@
  *  Advanced Linux Sound Architecture - ALSA - Driver
  *  Copyright (c) 1994-2003 by Jaroslav Kysela <perex@perex.cz>,
  *                             Abramo Bagnara <abramo@alsa-project.org>
- *  Copyright (C) 2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  *
  *   This program is free software; you can redistribute it and/or modify
