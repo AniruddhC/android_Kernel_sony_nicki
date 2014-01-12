@@ -1,5 +1,4 @@
 /* Copyright (c) 2008-2012, The Linux Foundation. All rights reserved.
- * Copyright(C) 2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -60,6 +59,12 @@ typedef enum {
 /* panel info type */
 struct lcd_panel_info {
 	__u32 vsync_enable;
+	__u32 primary_vsync_init;
+	__u32 primary_rdptr_irq;
+	__u32 primary_start_pos;
+	__u32 vsync_threshold_continue;
+	__u32 vsync_threshold_start;
+	__u32 total_lines;
 	__u32 refx100;
 	__u32 v_back_porch;
 	__u32 v_front_porch;
@@ -171,16 +176,16 @@ struct msm_panel_info {
 	__u32 is_3d_panel;
 	__u32 frame_rate;
 	__u32 frame_interval;
-	/* MM-KW-LCM-00+{ */
 	__u32 width;
 	__u32 height;
-	/* MM-KW-LCM-00-} */
 
 	struct mddi_panel_info mddi;
 	struct lcd_panel_info lcd;
 	struct lcdc_panel_info lcdc;
 	struct mipi_panel_info mipi;
 	struct lvds_panel_info lvds;
+	__u32 xres_aligned;
+	__u32 yres_aligned;
 };
 
 #define MSM_FB_SINGLE_MODE_PANEL(pinfo)		\

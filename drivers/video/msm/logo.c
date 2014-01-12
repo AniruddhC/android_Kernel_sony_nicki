@@ -3,7 +3,6 @@
  * Show Logo in RLE 565 format
  *
  * Copyright (C) 2008 Google Incorporated
- * Copyright(C) 2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -23,7 +22,6 @@
 #include <linux/syscalls.h>
 #include <linux/irq.h>
 #include <asm/system.h>
-/* MM-KW-Logo-01+{ */
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
@@ -31,11 +29,10 @@
 #include "msm_fb.h"
 #include "mdp.h"
 #include "mdp4.h"
-/* MM-KW-Logo-01-} */
 
 #define fb_width(fb)	((fb)->var.xres)
 #define fb_height(fb)	((fb)->var.yres)
-/* MM-KW-Logo-00+{ */
+
 #if defined(CONFIG_FB_MSM_DEFAULT_DEPTH_RGBA8888)
 #define fb_size(fb)	((fb)->var.xres * (fb)->var.yres * 4)
 #else
@@ -239,8 +236,7 @@ error1:
 	set_fs(old_fs);
 	return err;
 }
-/* MM-KW-Logo-00-} */
-/* MM-KW-Logo-01+{ */
+
 static void draw_logo(void)
 {
 	struct fb_info *fb_info = registered_fb[0];
@@ -277,4 +273,4 @@ int __init logo_init(void)
 }
 
 module_init(logo_init);
-/* MM-KW-Logo-01-} */
+

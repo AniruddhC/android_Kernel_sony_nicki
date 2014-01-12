@@ -1,5 +1,4 @@
 /* Copyright (c) 2008-2013, The Linux Foundation. All rights reserved.
- * Copyright(C) 2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -200,18 +199,16 @@ struct msm_fb_data_type {
 	void *cpu_pm_hdl;
 	u32 acq_fen_cnt;
 	struct sync_fence *acq_fen[MDP_MAX_FENCE_FD];
-	int cur_rel_fen_fd;
-	struct sync_pt *cur_rel_sync_pt;
-	struct sync_fence *cur_rel_fence;
-	struct sync_fence *last_rel_fence;
 	struct sw_sync_timeline *timeline;
 	int timeline_value;
-	u32 last_acq_fen_cnt;
-	struct sync_fence *last_acq_fen[MDP_MAX_FENCE_FD];
 	struct mutex sync_mutex;
+	struct mutex queue_mutex;
 	struct completion commit_comp;
 	u32 is_committing;
-	struct work_struct commit_work;
+	atomic_t commit_cnt;
+	struct task_struct *commit_thread;
+	wait_queue_head_t commit_queue;
+	int wake_commit_thread;
 	void *msm_fb_backup;
 	boolean panel_driver_on;
 	int vsync_sysfs_created;
@@ -219,6 +216,7 @@ struct msm_fb_data_type {
 	unsigned char *copy_splash_phys;
 	uint32 sec_mapped;
 	uint32 sec_active;
+	uint32 max_map_size;
 };
 struct msm_fb_backup_type {
 	struct fb_info info;
@@ -245,6 +243,8 @@ int calc_fb_offset(struct msm_fb_data_type *mfd, struct fb_info *fbi, int bpp);
 void msm_fb_wait_for_fence(struct msm_fb_data_type *mfd);
 int msm_fb_signal_timeline(struct msm_fb_data_type *mfd);
 void msm_fb_release_timeline(struct msm_fb_data_type *mfd);
+void msm_fb_release_busy(struct msm_fb_data_type *mfd);
+
 #ifdef CONFIG_FB_BACKLIGHT
 void msm_fb_config_backlight(struct msm_fb_data_type *mfd);
 #endif
@@ -254,7 +254,6 @@ int msm_fb_check_frame_rate(struct msm_fb_data_type *mfd,
 				struct fb_info *info);
 
 #ifdef CONFIG_FB_MSM_LOGO
-/* MM-KW-Logo-00+{ */
 #define INIT_IMAGE_FILE "/logo.rle"
 #if !defined(CONFIG_FB_MSM_DEFAULT_DEPTH_RGBA8888)
 int load_565rle_image(char *filename, bool bf_supported);
@@ -275,7 +274,6 @@ typedef enum {
 } BATT_ICON_TYPE;
 int fih_load_565rle_image(const char *filename);
 int fih_dump_framebuffer(char *filename);
-/* MM-KW-Logo-00-} */
 #endif
 
 #endif /* MSM_FB_H */
